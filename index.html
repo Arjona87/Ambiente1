@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Encuestas Jalisco</title>
+    <!-- Librería SheetJS para exportar a Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #0A3161; /* Azul Marino */
+            --secondary-color: #F37021; /* Naranja */
+            --bg-color: #F4F6F9;
+            --text-color: #333;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 40px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        h1, h2 {
+            color: var(--primary-color);
+            text-align: center;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .required::after {
+            content: " *";
+            color: red;
+        }
+        input[type="text"], input[type="password"], input[type="email"], input[type="tel"], select, textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        .checkbox-group {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        button {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 16px;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #08244a;
+        }
+        .btn-secondary {
+            background-color: var(--secondary-color);
+        }
+        .btn-secondary:hover {
+            background-color: #d15d19;
+        }
+        .hidden {
+            display: none;
+        }
+        .alert {
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            text-align: center;
+        }
+        .alert-error { background-color: #f8d7da; color: #721c24; }
+        .alert-success { background-color: #d4edda; color: #155724; }
+        .nav-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: var(--primary-color);
+            color: white;
+            padding: 10px 20px;
+        }
+        .nav-bar button {
+            width: auto;
+            margin: 0 5px;
+            background-color: var(--secondary-color);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 14px;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid var(--secondary-color);
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 10px auto;
+            display: none;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .btn-group button {
+            flex: 1;
+            min-width: 150px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Navegación (Oculta al inicio) -->
+    <div id="navBar" class="nav-bar hidden">
+        <span id="userGreeting">Bienvenido</span>
+        <div class="btn-group">
+            <button id="btnVerDatos" class="btn-secondary hidden" onclick="mostrarSeccion('datos')">Mis Datos</button>
+            <button id="btnVerAdmin" class="btn-secondary hidden" onclick="mostrarSeccion('admin')">Panel Admin</button>
+            <button id="btnLlenarEncuesta" class="btn-secondary hidden" onclick="mostrarSeccion('encuesta')">Encuesta</button>
+            <button onclick="logout()">Cerrar Sesión</button>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="mensaje" class="hidden alert"></div>
+        <div id="loader" class="loader"></div>
+
+        <!-- SECCIÓN: LOGIN -->
+        <div id="secLogin">
+            <h1>🔐 Acceso al Sistema</h1>
+            <p style="text-align: center; color: #666;">Encuestas de Datos Personales - Jalisco</p>
+            <form id="formLogin" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>Usuario</label>
+                    <input type="text" id="loginUser" required>
+                </div>
+                <div class="form-group">
+                    <label>Contraseña</label>
+                    <input type="password" id="loginPass" required>
+                </div>
+                <button type="submit">Ingresar</button>
+            </form>
+            <p style="text-align: center; margin-top: 20px; font-size: 12px; color: #999;">
+                <strong>Usuarios de prueba:</strong><br>
+                Admin: admin / admin123<br>
+                Usuario: usuario1 / pass123
+            </p>
+        </div>
+
+        <!-- SECCIÓN: ENCUESTA -->
+        <div id="secEncuesta" class="hidden">
+            <h2>📋 Encuesta de Datos Personales</h2>
+            <form id="formEncuesta" onsubmit="handleEncuesta(event)">
+                <div class="form-group">
+                    <label class="required">Nombre Completo</label>
+                    <input type="text" id="encNombre" required>
+                </div>
+                <div class="form-group">
+                    <label class="required">Teléfono (+52...)</label>
+                    <input type="tel" id="encTelefono" pattern="\+52[0-9]{10}" placeholder="+523312345678" required>
+                </div>
+                <div class="form-group">
+                    <label class="required">Correo Electrónico</label>
+                    <input type="email" id="encCorreo" required>
+                </div>
+                <div class="form-group">
+                    <label class="required">Domicilio</label>
+                    <input type="text" id="encDomicilio" required>
+                </div>
+                <div class="form-group">
+                    <label class="required">Municipio</label>
+                    <select id="encMunicipio" required>
+                        <option value="">Seleccione...</option>
+                        <option value="Guadalajara">Guadalajara</option>
+                        <option value="Zapopan">Zapopan</option>
+                        <option value="Tlaquepaque">Tlaquepaque</option>
+                        <option value="Tonalá">Tonalá</option>
+                        <option value="Tlajomulco">Tlajomulco</option>
+                        <option value="Puerto Vallarta">Puerto Vallarta</option>
+                        <option value="Otro">Otro</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="required">CURP</label>
+                    <input type="text" id="encCurp" minlength="18" maxlength="18" style="text-transform:uppercase" placeholder="XXXXXXXXXXXXXX00" required>
+                </div>
+                <div class="form-group">
+                    <label class="required">Hobbies Principales (Selecciona al menos uno)</label>
+                    <div class="checkbox-group">
+                        <label><input type="checkbox" name="hobbies" value="Deportes"> Deportes</label>
+                        <label><input type="checkbox" name="hobbies" value="Lectura"> Lectura</label>
+                        <label><input type="checkbox" name="hobbies" value="Música"> Música</label>
+                        <label><input type="checkbox" name="hobbies" value="Viajes"> Viajes</label>
+                        <label><input type="checkbox" name="hobbies" value="Cocina"> Cocina</label>
+                        <label><input type="checkbox" name="hobbies" value="Tecnología"> Tecnología</label>
+                        <label><input type="checkbox" name="hobbies" value="Arte"> Arte</label>
+                        <label><input type="checkbox" name="hobbies" value="Otro"> Otro</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Hobbies Secundarios (Opcional)</label>
+                    <input type="text" id="encHobbiesSec" placeholder="Describe otros intereses...">
+                </div>
+                <div class="form-group">
+                    <label>Comentarios Adicionales (Opcional)</label>
+                    <textarea id="encComentarios" rows="3" placeholder="Comparte cualquier comentario adicional..."></textarea>
+                </div>
+                <button type="submit">✓ Enviar Encuesta</button>
+            </form>
+        </div>
+
+        <!-- SECCIÓN: MIS DATOS -->
+        <div id="secDatos" class="hidden">
+            <h2>📊 Mis Registros</h2>
+            <button class="btn-secondary" onclick="descargarExcel('misDatosTable', 'Mis_Datos')">⬇️ Descargar en Excel</button>
+            <div style="overflow-x:auto; margin-top: 20px;">
+                <table id="misDatosTable">
+                    <thead>
+                        <tr>
+                            <th>Fecha Envío</th><th>Nombre</th><th>Municipio</th><th>Hobbies</th>
+                        </tr>
+                    </thead>
+                    <tbody id="misDatosBody">
+                        <tr><td colspan="4" style="text-align: center; color: #999;">Cargando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- SECCIÓN: PANEL ADMIN -->
+        <div id="secAdmin" class="hidden">
+            <h2>👨‍💼 Panel de Administrador</h2>
+            <button class="btn-secondary" onclick="descargarExcel('adminTable', 'Reporte_Completo')">⬇️ Descargar Base de Datos Completa (Excel)</button>
+            <div style="overflow-x:auto; margin-top: 20px;">
+                <table id="adminTable">
+                    <thead>
+                        <tr>
+                            <th>ID</th><th>Usuario</th><th>Nombre</th><th>Teléfono</th><th>Municipio</th><th>Fecha Envío</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adminBody">
+                        <tr><td colspan="6" style="text-align: center; color: #999;">Cargando...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ==========================================
+        // CONFIGURACIÓN - URL DEL GOOGLE APPS SCRIPT
+        // ==========================================
+        const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxzIDNuXPWwqan49EXA2Vz5i_hVeNjwfZLJRkEdiNibt7fN_9ZSojq-CRTSRYrf4-nOtQ/exec';
+
+        // Estado de la aplicación
+        let currentUser = null;
+
+        // Inicialización
+        window.onload = () => {
+            const savedUser = localStorage.getItem('encuestas_user');
+            if (savedUser) {
+                currentUser = JSON.parse(savedUser);
+                configurarInterfaz();
+            }
+        };
+
+        // Utilidades UI
+        function mostrarMensaje(texto, tipo) {
+            const div = document.getElementById('mensaje');
+            div.textContent = texto;
+            div.className = `alert alert-${tipo}`;
+            div.classList.remove('hidden');
+            setTimeout(() => div.classList.add('hidden'), 5000);
+        }
+
+        function toggleLoader(show) {
+            document.getElementById('loader').style.display = show ? 'block' : 'none';
+        }
+
+        function mostrarSeccion(seccion) {
+            document.getElementById('secLogin').classList.add('hidden');
+            document.getElementById('secEncuesta').classList.add('hidden');
+            document.getElementById('secDatos').classList.add('hidden');
+            document.getElementById('secAdmin').classList.add('hidden');
+
+            if (seccion === 'login') document.getElementById('secLogin').classList.remove('hidden');
+            if (seccion === 'encuesta') document.getElementById('secEncuesta').classList.remove('hidden');
+            if (seccion === 'datos') {
+                document.getElementById('secDatos').classList.remove('hidden');
+                cargarMisDatos();
+            }
+            if (seccion === 'admin') {
+                document.getElementById('secAdmin').classList.remove('hidden');
+                cargarTodosDatos();
+            }
+        }
+
+        function configurarInterfaz() {
+            document.getElementById('navBar').classList.remove('hidden');
+            document.getElementById('userGreeting').textContent = `Hola, ${currentUser.usuario} (${currentUser.rol})`;
+            
+            document.getElementById('btnVerDatos').classList.remove('hidden');
+            document.getElementById('btnLlenarEncuesta').classList.remove('hidden');
+            
+            if (currentUser.rol === 'Administrador') {
+                document.getElementById('btnVerAdmin').classList.remove('hidden');
+                mostrarSeccion('admin');
+            } else {
+                mostrarSeccion('encuesta');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('encuestas_user');
+            currentUser = null;
+            document.getElementById('navBar').classList.add('hidden');
+            document.getElementById('btnVerAdmin').classList.add('hidden');
+            document.getElementById('formLogin').reset();
+            mostrarSeccion('login');
+            mostrarMensaje('Sesión cerrada correctamente', 'success');
+        }
+
+        // Peticiones al Backend
+        async function fetchAPI(payload) {
+            try {
+                toggleLoader(true);
+                const response = await fetch(SCRIPT_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(payload)
+                });
+                const result = await response.json();
+                toggleLoader(false);
+                return result;
+            } catch (error) {
+                toggleLoader(false);
+                console.error("Error Fetch:", error);
+                mostrarMensaje("Error de conexión con el servidor.", "error");
+                return { success: false };
+            }
+        }
+
+        // Manejadores de Eventos
+        async function handleLogin(e) {
+            e.preventDefault();
+            const user = document.getElementById('loginUser').value;
+            const pass = document.getElementById('loginPass').value;
+
+            const res = await fetchAPI({ accion: 'login', usuario: user, password: pass });
+            
+            if (res.success) {
+                currentUser = res.data;
+                localStorage.setItem('encuestas_user', JSON.stringify(currentUser));
+                configurarInterfaz();
+                mostrarMensaje(res.message, "success");
+            } else {
+                mostrarMensaje(res.message || "Error al iniciar sesión", "error");
+            }
+        }
+
+        async function handleEncuesta(e) {
+            e.preventDefault();
+            
+            // Validar checkboxes
+            const checkboxes = document.querySelectorAll('input[name="hobbies"]:checked');
+            if (checkboxes.length === 0) {
+                mostrarMensaje("Debes seleccionar al menos un hobbie principal.", "error");
+                return;
+            }
+
+            const hobbiesArray = Array.from(checkboxes).map(cb => cb.value);
+            const fechaActual = new Date().toISOString().split('T')[0];
+
+            const encuestaData = {
+                nombre: document.getElementById('encNombre').value,
+                telefono: document.getElementById('encTelefono').value,
+                correo: document.getElementById('encCorreo').value,
+                domicilio: document.getElementById('encDomicilio').value,
+                municipio: document.getElementById('encMunicipio').value,
+                curp: document.getElementById('encCurp').value.toUpperCase(),
+                hobbies: hobbiesArray,
+                hobbies_secundarios: document.getElementById('encHobbiesSec').value,
+                comentarios: document.getElementById('encComentarios').value,
+                fecha_envio: fechaActual
+            };
+
+            const res = await fetchAPI({ 
+                accion: 'guardar_encuesta', 
+                usuario: currentUser.usuario,
+                encuesta: encuestaData 
+            });
+
+            if (res.success) {
+                mostrarMensaje("¡Encuesta enviada con éxito!", "success");
+                document.getElementById('formEncuesta').reset();
+                setTimeout(() => mostrarSeccion('datos'), 1500);
+            } else {
+                mostrarMensaje(res.message, "error");
+            }
+        }
+
+        async function cargarMisDatos() {
+            const res = await fetchAPI({ accion: 'obtener_mis_datos', usuario: currentUser.usuario });
+            if (res.success) {
+                const tbody = document.getElementById('misDatosBody');
+                tbody.innerHTML = '';
+                if (res.data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: #999;">No hay registros aún</td></tr>';
+                } else {
+                    res.data.forEach(row => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${new Date(row.Fecha_Envío).toLocaleDateString('es-MX')}</td>
+                            <td>${row.Nombre}</td>
+                            <td>${row.Municipio}</td>
+                            <td>${row.Hobbies}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+            } else {
+                mostrarMensaje(res.message || "Error al cargar datos", "error");
+            }
+        }
+
+        async function cargarTodosDatos() {
+            const res = await fetchAPI({ accion: 'obtener_todos_datos', usuario: currentUser.usuario });
+            if (res.success) {
+                const tbody = document.getElementById('adminBody');
+                tbody.innerHTML = '';
+                if (res.data.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #999;">No hay registros aún</td></tr>';
+                } else {
+                    res.data.forEach(row => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${row.ID}</td>
+                            <td>${row.Usuario}</td>
+                            <td>${row.Nombre}</td>
+                            <td>${row.Teléfono}</td>
+                            <td>${row.Municipio}</td>
+                            <td>${new Date(row.Fecha_Envío).toLocaleDateString('es-MX')}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+            } else {
+                mostrarMensaje(res.message || "Error al cargar datos", "error");
+            }
+        }
+
+        // Exportar a Excel
+        function descargarExcel(tableId, nombreArchivoBase) {
+            const table = document.getElementById(tableId);
+            const wb = XLSX.utils.table_to_book(table, {sheet: "Datos"});
+            const fecha = new Date().toISOString().split('T')[0];
+            XLSX.writeFile(wb, `${nombreArchivoBase}_${fecha}.xlsx`);
+        }
+    </script>
+</body>
+</html>
