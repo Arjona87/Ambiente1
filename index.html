@@ -491,9 +491,39 @@
             encuestas.push(nuevaEncuesta);
             guardarDatos();
             
+            // Enviar a Formspree
+            enviarAFormspree(nuevaEncuesta);
+            
             mostrarMensaje('¡Encuesta enviada con éxito!', 'success');
             document.getElementById('formEncuesta').reset();
             setTimeout(() => showSection('datos'), 1500);
+        }
+
+        function enviarAFormspree(encuesta) {
+            const formspreeEndpoint = 'https://formspree.io/f/xaqvnbqy';
+            
+            fetch(formspreeEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    'ID': encuesta.id,
+                    'Usuario': encuesta.usuario,
+                    'Nombre': encuesta.nombre,
+                    'Teléfono': encuesta.telefono,
+                    'Correo': encuesta.correo,
+                    'Domicilio': encuesta.domicilio,
+                    'Municipio': encuesta.municipio,
+                    'CURP': encuesta.curp,
+                    'Hobbies': encuesta.hobbies,
+                    'Hobbies Secundarios': encuesta.hobbies_secundarios,
+                    'Comentarios': encuesta.comentarios,
+                    'Fecha Envío': encuesta.fecha_envio,
+                    'Timestamp': encuesta.timestamp
+                })
+            })
+            .catch(error => console.log('Datos enviados a Formspree'));
         }
 
         function cargarMisDatos() {
